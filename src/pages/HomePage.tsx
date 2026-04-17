@@ -24,7 +24,8 @@ export function HomePage() {
         </button>
       </nav>
 
-      <main className="flex items-center justify-center p-12">
+      <main className="flex flex-col items-center justify-center p-12 gap-2">
+        <h1 className="text-5xl font-bold tracking-tight text-foreground">Helpdesk</h1>
         <p className="text-lg text-muted-foreground">Welcome, {name}</p>
       </main>
     </div>

@@ -5,6 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
 import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -42,50 +46,45 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-semibold text-card-foreground">Ticket AI</h1>
-        <p className="mb-6 text-sm text-muted-foreground">Sign in to your account</p>
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>Helpdesk</CardTitle>
+          <CardDescription>Sign in to your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} onChange={() => setServerError("")} noValidate className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                aria-invalid={!!errors.email}
+                {...register("email")}
+              />
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+            </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} onChange={() => setServerError("")} noValidate className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="email" className="text-sm font-medium text-card-foreground">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              {...register("email")}
-              className={`rounded-md border bg-background px-3 py-2 text-sm text-card-foreground outline-none focus:ring-2 focus:ring-ring ${errors.email ? "border-destructive" : "border-border"}`}
-              placeholder="you@example.com"
-            />
-            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
-          </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                aria-invalid={!!errors.password}
+                {...register("password")}
+              />
+              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="password" className="text-sm font-medium text-card-foreground">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              {...register("password")}
-              className={`rounded-md border bg-background px-3 py-2 text-sm text-card-foreground outline-none focus:ring-2 focus:ring-ring ${errors.password ? "border-destructive" : "border-border"}`}
-              placeholder="••••••••"
-            />
-            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
-          </div>
+            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
-          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {isSubmitting ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-      </div>
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
