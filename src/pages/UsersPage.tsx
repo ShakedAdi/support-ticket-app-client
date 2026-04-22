@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface User {
   id: string;
@@ -41,7 +42,17 @@ export function UsersPage() {
       <main className="flex flex-col items-center justify-center p-12 gap-6">
         <h1 className="text-2xl font-semibold">Users</h1>
         {isPending ? (
-          <span className="text-sm text-muted-foreground">Loading…</span>
+          <ul className="w-full max-w-md divide-y divide-border rounded-lg border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li key={i} className="flex items-center justify-between px-4 py-3">
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+                <Skeleton className="h-3 w-10" />
+              </li>
+            ))}
+          </ul>
         ) : isError ? (
           <span className="text-sm text-destructive">Failed to load users.</span>
         ) : (
