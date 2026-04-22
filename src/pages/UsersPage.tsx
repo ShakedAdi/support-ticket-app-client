@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
@@ -14,15 +15,14 @@ interface User {
 export function UsersPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>([]);
-  const [isPending, setIsPending] = useState(true);
 
-  useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/users`, { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => setUsers(data))
-      .finally(() => setIsPending(false));
-  }, []);
+  const { data: users = [], isPending, isError } = useQuery<User[]>({
+    queryKey: ['users'],
+    queryFn: () =>
+      axios
+        .get<User[]>(`${import.meta.env.VITE_API_URL}/api/users`, { withCredentials: true })
+        .then((res) => res.data),
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,6 +42,8 @@ export function UsersPage() {
         <h1 className="text-2xl font-semibold">Users</h1>
         {isPending ? (
           <span className="text-sm text-muted-foreground">Loading…</span>
+        ) : isError ? (
+          <span className="text-sm text-destructive">Failed to load users.</span>
         ) : (
           <ul className="w-full max-w-md divide-y divide-border rounded-lg border">
             {users.map((u) => (
