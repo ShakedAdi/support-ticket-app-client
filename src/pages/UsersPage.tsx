@@ -56,6 +56,10 @@ export function UsersPage() {
   const [verifiedCurrentPassword, setVerifiedCurrentPassword] = useState('');
   const [editServerError, setEditServerError] = useState('');
 
+  // Delete user modal
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleteServerError, setDeleteServerError] = useState('');
+
   const { data: users = [], isPending, isError } = useQuery<User[]>({
     queryKey: ['users'],
     queryFn: () =>
@@ -106,6 +110,15 @@ export function UsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       closeEditModal();
+    },
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (id: string) =>
+      axios.delete(`${import.meta.env.VITE_API_URL}/api/users/${id}`, { withCredentials: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      closeDeleteModal();
     },
   });
 
@@ -180,6 +193,29 @@ export function UsersPage() {
     }
   }
 
+  function openDeleteModal(user: User) {
+    setDeletingUser(user);
+    setDeleteServerError('');
+  }
+
+  function closeDeleteModal() {
+    setDeletingUser(null);
+    setDeleteServerError('');
+  }
+
+  async function onDeleteConfirm() {
+    setDeleteServerError('');
+    try {
+      await deleteUser.mutateAsync(deletingUser!.id);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setDeleteServerError(err.response?.data?.error ?? 'Failed to delete user');
+      } else {
+        setDeleteServerError('Failed to delete user');
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <PageHeader
@@ -225,6 +261,9 @@ export function UsersPage() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">{u.role}</span>
                   <Button size="sm" variant="outline" onClick={() => openEditModal(u)}>Edit</Button>
+                  {u.id !== session?.user.id && (
+                    <Button size="sm" variant="outline" onClick={() => openDeleteModal(u)}>Delete</Button>
+                  )}
                 </div>
               </li>
             ))}
@@ -395,6 +434,30 @@ export function UsersPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User — Confirmation Modal */}
+      {deletingUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => { if (e.target === e.currentTarget) closeDeleteModal(); }}
+        >
+          <div className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-lg">
+            <h2 className="mb-1 text-lg font-semibold">Delete User</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Are you sure you want to delete <span className="font-medium">{deletingUser.name}</span>? This action cannot be undone.
+            </p>
+            {deleteServerError && <p className="mb-4 text-sm text-destructive">{deleteServerError}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeDeleteModal} disabled={deleteUser.isPending}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={onDeleteConfirm} disabled={deleteUser.isPending}>
+                {deleteUser.isPending ? 'Deleting…' : 'Delete'}
+              </Button>
+            </div>
           </div>
         </div>
       )}
