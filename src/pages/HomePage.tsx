@@ -19,6 +19,12 @@ export function HomePage() {
       <PageHeader
         name={name}
         actions={<>
+          <Link
+            to="/tickets"
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-card-foreground hover:bg-accent"
+          >
+            Tickets
+          </Link>
           {isAdmin && (
             <Link
               to="/users"

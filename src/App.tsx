@@ -5,6 +5,7 @@ import { AdminRoute } from '@/components/AdminRoute';
 import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { UsersPage } from '@/pages/UsersPage';
+import { TicketsPage } from '@/pages/TicketsPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/home" element={<HomePage />} />
+          <Route path="/tickets" element={<TicketsPage />} />
         </Route>
         <Route element={<AdminRoute />}>
           <Route path="/users" element={<UsersPage />} />
