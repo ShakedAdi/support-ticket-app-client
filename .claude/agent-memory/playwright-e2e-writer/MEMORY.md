@@ -1,0 +1,1 @@
+- [Playwright E2E project conventions](project_conventions.md) — Auth setup, selector patterns, POM structure, and test data strategy for this support-ticket-app E2E suite
