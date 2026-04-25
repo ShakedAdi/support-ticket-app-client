@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -8,11 +8,12 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
-import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 
 type Ticket = {
   id: string;
@@ -22,6 +23,8 @@ type Ticket = {
   createdAt: string;
   assignedTo: { id: string; name: string } | null;
 };
+
+type StatusFilter = 'all' | 'open' | 'in_progress' | 'resolved';
 
 const statusBadge: Record<Ticket['status'], string> = {
   open: 'bg-blue-100 text-blue-800',
@@ -35,21 +38,48 @@ const statusLabel: Record<Ticket['status'], string> = {
   resolved: 'Resolved',
 };
 
+const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Open' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'resolved', label: 'Resolved' },
+];
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setDebounced(value), delay);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [value, delay]);
+  return debounced;
+}
+
 export function TicketsPage() {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }]);
+  const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  const search = useDebounce(searchInput, 300);
 
   const sortBy = sorting[0]?.id ?? 'createdAt';
   const sortOrder = sorting[0]?.desc ? 'desc' : 'asc';
 
   const { data: tickets = [], isPending, isError } = useQuery<Ticket[]>({
-    queryKey: ['tickets', sortBy, sortOrder],
+    queryKey: ['tickets', sortBy, sortOrder, search, statusFilter],
     queryFn: () =>
       axios
         .get<Ticket[]>(`${import.meta.env.VITE_API_URL}/api/tickets`, {
-          params: { sortBy, sortOrder },
+          params: {
+            sortBy,
+            sortOrder,
+            ...(search ? { search } : {}),
+            ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+          },
           withCredentials: true,
         })
         .then((res) => res.data),
@@ -147,6 +177,34 @@ export function TicketsPage() {
       <main className="mx-auto max-w-4xl px-4 py-8">
         <h1 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Tickets</h1>
 
+        {/* Filter bar */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search subject or email…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-8 h-8 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  statusFilter === tab.value
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {isError && (
           <p className="text-sm text-destructive">Failed to load tickets. Please try again.</p>
         )}
@@ -173,7 +231,7 @@ export function TicketsPage() {
         )}
 
         {!isPending && !isError && tickets.length === 0 && (
-          <p className="text-sm text-muted-foreground">No tickets yet.</p>
+          <p className="text-sm text-muted-foreground">No tickets match your filters.</p>
         )}
 
         {!isPending && !isError && tickets.length > 0 && (
