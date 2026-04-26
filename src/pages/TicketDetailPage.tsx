@@ -1,5 +1,5 @@
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/useAuth';
@@ -8,10 +8,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { type TicketDetail, statusBadge, statusLabel } from '@/types/ticket';
 import { Role } from '@/types/role';
 
+type Agent = { id: string; name: string };
+
 export function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: ticket, isPending, isError } = useQuery<TicketDetail>({
     queryKey: ['ticket', id],
@@ -24,9 +27,34 @@ export function TicketDetailPage() {
     enabled: !!id,
   });
 
+  const { data: agents = [] } = useQuery<Agent[]>({
+    queryKey: ['agents'],
+    queryFn: () =>
+      axios
+        .get<Agent[]>(`${import.meta.env.VITE_API_URL}/api/agents`, { withCredentials: true })
+        .then((res) => res.data),
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: (assignedToId: string | null) =>
+      axios.patch(
+        `${import.meta.env.VITE_API_URL}/api/tickets/${id}/assign`,
+        { assignedToId },
+        { withCredentials: true }
+      ).then((res) => res.data),
+    onSuccess: (updated: TicketDetail) => {
+      queryClient.setQueryData(['ticket', id], updated);
+    },
+  });
+
   async function handleLogout() {
     await signOut();
     navigate('/login');
+  }
+
+  function handleAssignChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value;
+    assignMutation.mutate(value === '' ? null : value);
   }
 
   const name = session?.user.name ?? '';
@@ -102,7 +130,19 @@ export function TicketDetailPage() {
               </div>
               <div className="flex items-center justify-between px-4 py-2.5">
                 <span className="text-muted-foreground">Assigned to</span>
-                <span className="text-foreground">{ticket.assignedTo?.name ?? 'Unassigned'}</span>
+                <select
+                  value={ticket.assignedTo?.id ?? ''}
+                  onChange={handleAssignChange}
+                  disabled={assignMutation.isPending}
+                  className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                >
+                  <option value="">Unassigned</option>
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="flex items-center justify-between px-4 py-2.5">
                 <span className="text-muted-foreground">Created</span>
@@ -117,6 +157,10 @@ export function TicketDetailPage() {
                 </span>
               </div>
             </div>
+
+            {assignMutation.isError && (
+              <p className="text-sm text-destructive">Failed to reassign ticket. Please try again.</p>
+            )}
 
             {/* Body */}
             <div>
