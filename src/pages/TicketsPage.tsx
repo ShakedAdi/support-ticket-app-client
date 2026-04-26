@@ -8,7 +8,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
-import { ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
@@ -22,6 +22,13 @@ type Ticket = {
   status: 'open' | 'in_progress' | 'resolved';
   createdAt: string;
   assignedTo: { id: string; name: string } | null;
+};
+
+type TicketsResponse = {
+  data: Ticket[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'resolved';
@@ -45,6 +52,8 @@ const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'resolved', label: 'Resolved' },
 ];
 
+const PAGE_SIZE = 20;
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,20 +72,26 @@ export function TicketsPage() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }]);
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [page, setPage] = useState(1);
 
   const search = useDebounce(searchInput, 300);
+
+  // Reset to page 1 when filters or sort change
+  useEffect(() => { setPage(1); }, [search, statusFilter, sorting]);
 
   const sortBy = sorting[0]?.id ?? 'createdAt';
   const sortOrder = sorting[0]?.desc ? 'desc' : 'asc';
 
-  const { data: tickets = [], isPending, isError } = useQuery<Ticket[]>({
-    queryKey: ['tickets', sortBy, sortOrder, search, statusFilter],
+  const { data, isPending, isError } = useQuery<TicketsResponse>({
+    queryKey: ['tickets', sortBy, sortOrder, search, statusFilter, page],
     queryFn: () =>
       axios
-        .get<Ticket[]>(`${import.meta.env.VITE_API_URL}/api/tickets`, {
+        .get<TicketsResponse>(`${import.meta.env.VITE_API_URL}/api/tickets`, {
           params: {
             sortBy,
             sortOrder,
+            page,
+            pageSize: PAGE_SIZE,
             ...(search ? { search } : {}),
             ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
           },
@@ -84,6 +99,10 @@ export function TicketsPage() {
         })
         .then((res) => res.data),
   });
+
+  const tickets = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const columns = useMemo<ColumnDef<Ticket>[]>(
     () => [
@@ -149,6 +168,9 @@ export function TicketsPage() {
 
   const name = session?.user.name ?? '';
   const isAdmin = session?.user.role === 'admin';
+
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div className="min-h-screen bg-background">
@@ -235,50 +257,88 @@ export function TicketsPage() {
         )}
 
         {!isPending && !isError && tickets.length > 0 && (
-          <div className="rounded-lg border overflow-hidden">
-            <table className="w-full">
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id} className="border-b bg-muted/50">
-                    {headerGroup.headers.map((header) => {
-                      const sorted = header.column.getIsSorted();
-                      return (
-                        <th
-                          key={header.id}
-                          className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground"
-                        >
-                          <button
-                            className="flex items-center gap-1 hover:text-foreground transition-colors"
-                            onClick={header.column.getToggleSortingHandler()}
+          <>
+            <div className="rounded-lg border overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id} className="border-b bg-muted/50">
+                      {headerGroup.headers.map((header) => {
+                        const sorted = header.column.getIsSorted();
+                        return (
+                          <th
+                            key={header.id}
+                            className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground"
                           >
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {sorted === 'asc' ? (
-                              <ArrowUp className="h-3 w-3" />
-                            ) : sorted === 'desc' ? (
-                              <ArrowDown className="h-3 w-3" />
-                            ) : (
-                              <ArrowUpDown className="h-3 w-3 opacity-40" />
-                            )}
-                          </button>
-                        </th>
-                      );
-                    })}
-                  </tr>
+                            <button
+                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                              onClick={header.column.getToggleSortingHandler()}
+                            >
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {sorted === 'asc' ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : sorted === 'desc' ? (
+                                <ArrowDown className="h-3 w-3" />
+                              ) : (
+                                <ArrowUpDown className="h-3 w-3 opacity-40" />
+                              )}
+                            </button>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="hover:bg-muted/30 transition-colors">
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{from}–{to} of {total} tickets</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => p - 1)}
+                  disabled={page <= 1}
+                  className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`rounded-md px-2 py-0.5 text-xs font-medium border transition-colors ${
+                      p === page
+                        ? 'border-border bg-accent text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {p}
+                  </button>
                 ))}
-              </thead>
-              <tbody className="divide-y divide-border">
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page >= totalPages}
+                  className="rounded-md border border-border p-1 hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </main>
     </div>
