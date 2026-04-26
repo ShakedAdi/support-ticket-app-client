@@ -47,6 +47,18 @@ export function TicketDetailPage() {
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: (status: TicketDetail['status']) =>
+      axios.patch(
+        `${import.meta.env.VITE_API_URL}/api/tickets/${id}/status`,
+        { status },
+        { withCredentials: true }
+      ).then((res) => res.data),
+    onSuccess: (updated: TicketDetail) => {
+      queryClient.setQueryData(['ticket', id], updated);
+    },
+  });
+
   async function handleLogout() {
     await signOut();
     navigate('/login');
@@ -129,6 +141,19 @@ export function TicketDetailPage() {
                 <span className="text-foreground">{ticket.senderEmail}</span>
               </div>
               <div className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-muted-foreground">Status</span>
+                <select
+                  value={ticket.status}
+                  onChange={(e) => statusMutation.mutate(e.target.value as TicketDetail['status'])}
+                  disabled={statusMutation.isPending}
+                  className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                >
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5">
                 <span className="text-muted-foreground">Assigned to</span>
                 <select
                   value={ticket.assignedTo?.id ?? ''}
@@ -160,6 +185,10 @@ export function TicketDetailPage() {
 
             {assignMutation.isError && (
               <p className="text-sm text-destructive">Failed to reassign ticket. Please try again.</p>
+            )}
+
+            {statusMutation.isError && (
+              <p className="text-sm text-destructive">Failed to update status. Please try again.</p>
             )}
 
             {/* Body */}
