@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
@@ -5,7 +6,7 @@ import axios from 'axios';
 import { useAuth } from '@/context/useAuth';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type TicketDetail, statusBadge, statusLabel } from '@/types/ticket';
+import { type TicketDetail, type TicketReply, statusBadge, statusLabel } from '@/types/ticket';
 import { Role } from '@/types/role';
 
 type Agent = { id: string; name: string };
@@ -27,12 +28,36 @@ export function TicketDetailPage() {
     enabled: !!id,
   });
 
+  const [replyBody, setReplyBody] = useState('');
+
   const { data: agents = [] } = useQuery<Agent[]>({
     queryKey: ['agents'],
     queryFn: () =>
       axios
         .get<Agent[]>(`${import.meta.env.VITE_API_URL}/api/agents`, { withCredentials: true })
         .then((res) => res.data),
+  });
+
+  const { data: replies = [] } = useQuery<TicketReply[]>({
+    queryKey: ['ticket-replies', id],
+    queryFn: () =>
+      axios
+        .get<TicketReply[]>(`${import.meta.env.VITE_API_URL}/api/tickets/${id}/replies`, {
+          withCredentials: true,
+        })
+        .then((res) => res.data),
+    enabled: !!id,
+  });
+
+  const replyMutation = useMutation({
+    mutationFn: (body: string) =>
+      axios
+        .post(`${import.meta.env.VITE_API_URL}/api/tickets/${id}/replies`, { body }, { withCredentials: true })
+        .then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket-replies', id] });
+      setReplyBody('');
+    },
   });
 
   const assignMutation = useMutation({
@@ -199,6 +224,60 @@ export function TicketDetailPage() {
               <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                 {ticket.body}
               </div>
+            </div>
+
+            {/* Replies */}
+            <div>
+              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Replies{replies.length > 0 && ` (${replies.length})`}
+              </h2>
+
+              {replies.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No replies yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {replies.map((reply) => (
+                    <div key={reply.id} className="rounded-lg border bg-muted/20 px-4 py-3 text-sm">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-medium text-foreground">{reply.author.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(reply.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-foreground whitespace-pre-wrap leading-relaxed">{reply.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (replyBody.trim()) replyMutation.mutate(replyBody);
+                }}
+                className="mt-4 space-y-2"
+              >
+                <textarea
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  placeholder="Write a reply..."
+                  rows={3}
+                  disabled={replyMutation.isPending}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 resize-none"
+                />
+                {replyMutation.isError && (
+                  <p className="text-sm text-destructive">Failed to send reply. Please try again.</p>
+                )}
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={replyMutation.isPending || !replyBody.trim()}
+                    className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {replyMutation.isPending ? 'Sending...' : 'Send Reply'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
