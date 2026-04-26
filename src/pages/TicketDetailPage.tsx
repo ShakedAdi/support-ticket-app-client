@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/useAuth';
 import { PageHeader } from '@/components/PageHeader';
@@ -29,6 +29,26 @@ export function TicketDetailPage() {
   });
 
   const [replyBody, setReplyBody] = useState('');
+  const [isPolishing, setIsPolishing] = useState(false);
+  const [polishError, setPolishError] = useState<string | null>(null);
+
+  async function handlePolish() {
+    if (!replyBody.trim()) return;
+    setIsPolishing(true);
+    setPolishError(null);
+    try {
+      const res = await axios.post<{ polishedBody: string }>(
+        `${import.meta.env.VITE_API_URL}/api/tickets/${id}/polish-reply`,
+        { body: replyBody },
+        { withCredentials: true }
+      );
+      setReplyBody(res.data.polishedBody);
+    } catch {
+      setPolishError('Failed to polish reply. Please try again.');
+    } finally {
+      setIsPolishing(false);
+    }
+  }
 
   const { data: agents = [] } = useQuery<Agent[]>({
     queryKey: ['agents'],
@@ -262,16 +282,28 @@ export function TicketDetailPage() {
                   onChange={(e) => setReplyBody(e.target.value)}
                   placeholder="Write a reply..."
                   rows={3}
-                  disabled={replyMutation.isPending}
+                  disabled={replyMutation.isPending || isPolishing}
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 resize-none"
                 />
                 {replyMutation.isError && (
                   <p className="text-sm text-destructive">Failed to send reply. Please try again.</p>
                 )}
-                <div className="flex justify-end">
+                {polishError && (
+                  <p className="text-sm text-destructive">{polishError}</p>
+                )}
+                <div className="flex justify-between items-center">
+                  <button
+                    type="button"
+                    onClick={handlePolish}
+                    disabled={isPolishing || replyMutation.isPending || !replyBody.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {isPolishing ? 'Polishing...' : 'Polish'}
+                  </button>
                   <button
                     type="submit"
-                    disabled={replyMutation.isPending || !replyBody.trim()}
+                    disabled={replyMutation.isPending || isPolishing || !replyBody.trim()}
                     className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     {replyMutation.isPending ? 'Sending...' : 'Send Reply'}
