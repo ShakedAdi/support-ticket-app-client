@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/useAuth";
+import { Role } from "@/types/role";
 
 export function AdminRoute() {
   const { session, isPending } = useAuth();
@@ -16,7 +17,7 @@ export function AdminRoute() {
     return <Navigate to="/login" replace />;
   }
 
-  if (session.user.role !== "admin") {
+  if (session.user.role !== Role.admin) {
     return <Navigate to="/home" replace />;
   }
 

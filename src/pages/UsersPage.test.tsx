@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
 import { UsersPage } from './UsersPage';
+import { Role } from '@/types/role';
 
 vi.mock('axios');
 vi.mock('@/context/AuthContext', () => ({
@@ -14,8 +15,8 @@ vi.mock('@/context/AuthContext', () => ({
 const mockedAxios = vi.mocked(axios);
 
 const USERS = [
-  { id: '1', name: 'Alice', email: 'alice@example.com', role: 'admin', createdAt: '' },
-  { id: '2', name: 'Bob', email: 'bob@example.com', role: 'agent', createdAt: '' },
+  { id: '1', name: 'Alice', email: 'alice@example.com', role: Role.admin, createdAt: '' },
+  { id: '2', name: 'Bob', email: 'bob@example.com', role: Role.agent, createdAt: '' },
 ];
 
 function renderPage() {
@@ -150,7 +151,7 @@ describe('UsersPage — Add User form validation', () => {
 
   it('submits and closes modal on valid input', async () => {
     const user = await openModal();
-    const newUser = { id: '3', name: 'Carol', email: 'carol@example.com', role: 'agent', createdAt: '' };
+    const newUser = { id: '3', name: 'Carol', email: 'carol@example.com', role: Role.agent, createdAt: '' };
     mockedAxios.post = vi.fn().mockResolvedValue({ data: newUser });
     mockedAxios.get = vi.fn().mockResolvedValue({ data: [...USERS, newUser] });
 

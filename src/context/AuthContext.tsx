@@ -1,15 +1,5 @@
-import { createContext, useContext } from "react";
 import { authClient } from "@/lib/auth-client";
-
-type Session = typeof authClient.$Infer.Session;
-
-interface AuthContextValue {
-  session: Session | null;
-  isPending: boolean;
-  signOut: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext } from "./authContext";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = authClient.useSession();
@@ -23,10 +13,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }

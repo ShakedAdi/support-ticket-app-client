@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/useAuth";
 import { PageHeader } from "@/components/PageHeader";
+import { Role } from "@/types/role";
 
 export function HomePage() {
   const { session, signOut } = useAuth();
@@ -12,7 +13,7 @@ export function HomePage() {
   }
 
   const name = session?.user.name ?? "";
-  const isAdmin = session?.user.role === "admin";
+  const isAdmin = session?.user.role === Role.admin;
 
   return (
     <div className="min-h-screen bg-background">

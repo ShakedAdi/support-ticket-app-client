@@ -10,19 +10,12 @@ import {
 } from '@tanstack/react-table';
 import { ArrowUp, ArrowDown, ArrowUpDown, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-
-type Ticket = {
-  id: string;
-  subject: string;
-  senderEmail: string;
-  status: 'open' | 'in_progress' | 'resolved';
-  createdAt: string;
-  assignedTo: { id: string; name: string } | null;
-};
+import { type Ticket, statusBadge, statusLabel } from '@/types/ticket';
+import { Role } from '@/types/role';
 
 type TicketsResponse = {
   data: Ticket[];
@@ -32,18 +25,6 @@ type TicketsResponse = {
 };
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'resolved';
-
-const statusBadge: Record<Ticket['status'], string> = {
-  open: 'bg-blue-100 text-blue-800',
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  resolved: 'bg-green-100 text-green-800',
-};
-
-const statusLabel: Record<Ticket['status'], string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  resolved: 'Resolved',
-};
 
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -167,7 +148,7 @@ export function TicketsPage() {
   }
 
   const name = session?.user.name ?? '';
-  const isAdmin = session?.user.role === 'admin';
+  const isAdmin = session?.user.role === Role.admin;
 
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(page * PAGE_SIZE, total);
@@ -291,7 +272,11 @@ export function TicketsPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="hover:bg-muted/30 transition-colors">
+                    <tr
+                      key={row.id}
+                      onClick={() => navigate(`/tickets/${row.original.id}`)}
+                      className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    >
                       {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="px-4 py-3">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
